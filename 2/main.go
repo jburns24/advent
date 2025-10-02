@@ -43,45 +43,14 @@ func main() {
 	safe_count := 0
 
 	for _, report := range reports {
-		var last int
-		hasLast := false
-		safe := true
-		var direction int
-		for _, level := range report {
-			if hasLast == false {
-				// we are on the first one set it and move on
-				last = level
-				hasLast = true
-				continue
+		safe, _ := IsReportSafe(report)
+		if !safe {
+			// If unsafe would removing any element make it safe?
+			for i, _ := range report {
+				mod_report := RemoveAtCopy(report, i)
+				now_safe, _ := IsReportSafe(mod_report)
+				safe = safe || now_safe
 			}
-			diff := level - last
-			// if diff is 0 they are the same and unsafe
-			if diff == 0 {
-				safe = false
-				break
-			}
-			// if the absolute diff is ever more than 2 we increased or decreased by too much
-			if Abs(diff) > 3 {
-				safe = false
-				break
-			}
-			// fist comparison we need to initialize direction
-			if direction == 0 {
-				if diff > 0 {
-					direction = 1
-				} else {
-					direction = -1
-				}
-			}
-			if diff > 0 && direction == -1 {
-				safe = false
-				break
-			}
-			if diff < 0 && direction == 1 {
-				safe = false
-				break
-			}
-			last = level
 		}
 		if safe {
 			safe_count++
@@ -91,9 +60,70 @@ func main() {
 	fmt.Printf("Safe reports: %v", safe_count)
 }
 
+func IsReportSafe(report []int) (bool, int) {
+	var last int
+	hasLast := false
+	safe := true
+	var direction int
+	var index int
+	for i, level := range report {
+		index = i
+		if hasLast == false {
+			// we are on the first one set it and move on
+			last = level
+			hasLast = true
+			continue
+		}
+		diff := level - last
+		// if diff is 0 they are the same and unsafe
+		if diff == 0 {
+			safe = false
+			break
+		}
+		// if the absolute diff is ever more than 2 we increased or decreased by too much
+		if Abs(diff) > 3 {
+			safe = false
+			break
+		}
+		// fist comparison we need to initialize direction
+		if direction == 0 {
+			if diff > 0 {
+				direction = 1
+			} else {
+				direction = -1
+			}
+		}
+		if diff > 0 && direction == -1 {
+			safe = false
+			break
+		}
+		if diff < 0 && direction == 1 {
+			safe = false
+			break
+		}
+		last = level
+	}
+	return safe, index
+}
+
 func Abs(x int) int {
 	if x < 0 {
 		return -x
 	}
 	return x
+}
+
+func RemoveAtCopy[T any](s []T, i int) []T {
+	if i < 0 || i >= len(s) {
+		panic("index out of range")
+	}
+
+	// Allocate a new slice with length = len(s)-1
+	result := make([]T, 0, len(s)-1)
+
+	// Copy the parts before and after i
+	result = append(result, s[:i]...)
+	result = append(result, s[i+1:]...)
+
+	return result
 }
