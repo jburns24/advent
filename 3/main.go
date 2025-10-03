@@ -7,6 +7,7 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 )
 
 func main() {
@@ -29,23 +30,36 @@ func main() {
 		whole_text += text
 	}
 
-	re := regexp.MustCompile(`mul\((\d{1,3}),(\d{1,3})\)`)
+	re := regexp.MustCompile(`do\(\)|mul\((\d{1,3}),(\d{1,3})\)|don\'t\(\)`)
 
 	// Second argument here dictates _how_ many matches we return. -1 is for All
 	matches := re.FindAllStringSubmatch(whole_text, -1)
 
 	result := 0
 
+	do := true
 	for _, e := range matches {
-		l, err := strconv.Atoi(e[1])
-		if err != nil {
-			log.Fatalf("Failed to convert to int: %v", err)
+		if strings.HasPrefix(e[0], "do") {
+			// we know we found a command
+			if strings.HasPrefix(e[0], "don't") {
+				do = false
+			} else {
+				do = true
+			}
+		} else if strings.HasPrefix(e[0], "mul") {
+			if !do {
+				continue
+			}
+			l, err := strconv.Atoi(e[1])
+			if err != nil {
+				log.Fatalf("Failed to convert to int: %v", err)
+			}
+			r, err := strconv.Atoi(e[2])
+			if err != nil {
+				log.Fatalf("Failed to convert to int: %v", err)
+			}
+			result += (l * r)
 		}
-		r, err := strconv.Atoi(e[2])
-		if err != nil {
-			log.Fatalf("Failed to convert to int: %v", err)
-		}
-		result += (l * r)
 	}
 
 	fmt.Printf("Answer: %v\n", result)
