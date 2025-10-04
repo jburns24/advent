@@ -2,9 +2,12 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"log"
 	"os"
+	"sort"
+	"strconv"
 )
 
 func main() {
@@ -38,40 +41,59 @@ func main() {
 	// Or we could just use a 2d array of booleans that is the same size as the
 	// input matrix and mark each coordinate we find as true. Then at the end
 	// count the number of trues in that matrix
-	matches := 0
+	matches := make(map[string][][]int)
+
 	for y, yAxis := range matrix {
 		for x, _ := range yAxis {
 			// This would be a good to put in a goroutine
 			north := findNorthPath(x, y)
 			if len(north) > 0 && testPath(matrix, north) {
-				// fmt.Printf("\nNorth Path match found %d is %v\n", y, north)
-				matches++
+				matches = mergeMap(matches, north)
+				// fmt.Printf("\nmerged map: %v\n", matches)
+				// fmt.Printf("\nMap length after north %d\n", len(matches))
 			}
 
-			east := findEastPath(matrix[y], x, y)
+			east := findEastPath(len(matrix[y]), x, y)
 			if len(east) > 0 && testPath(matrix, east) {
-				// fmt.Printf("\nEast Path match found %d is %v\n", y, east)
-				matches++
+				matches = mergeMap(matches, east)
+				// fmt.Printf("\nmerged map: %v\n", matches)
+				// fmt.Printf("\nMap length after east %d\n", len(matches))
 			}
 
 			south := findSouthPath(len(matrix)-1, x, y)
 			if len(east) > 0 && testPath(matrix, south) {
-				fmt.Printf("\nSouth Path match found %d is %v\n", y, south)
-				matches++
+				matches = mergeMap(matches, south)
+			}
+
+			west := findWestPath(x, y)
+			if len(west) > 0 && testPath(matrix, west) {
+				fmt.Printf("\nWest paths found %v\n", west)
+				matches = mergeMap(matches, west)
 			}
 		}
 	}
 }
 
-func testPath(matrix [][]rune, coords [][]int) bool {
+func mergeMap(destination map[string][][]int, source map[string][][]int) map[string][][]int {
+	for k, v := range source {
+		if len(destination[k]) == 0 {
+			destination[k] = v
+		}
+	}
+	return destination
+}
+
+func testPath(matrix [][]rune, coords map[string][][]int) bool {
 	// runes for XMAS are 88 77 65 83
 	// the total of these runes is 313
 	// it also happens that there is no other combination of those
 	// characters that can equal 313. Therefore if the total of the runes at
 	// the coordinates is 313 we found a match (this is a directionless check)
 	total := 0
-	for _, coordinate := range coords {
-		total += int(matrix[coordinate[0]][coordinate[1]] - 0)
+	for _, coordinates := range coords {
+		for _, coordinate := range coordinates {
+			total += int(matrix[coordinate[0]][coordinate[1]] - 0)
+		}
 	}
 	if total == 313 { // magic number
 		return true
@@ -97,9 +119,39 @@ func findPaths(matrix [][]int, x int, y int) [][]int {
 	return result
 }
 
-// Given an index I need to find all length of 4 that extends from that point
-// So if we are given the index of X. This function should return a 2d array
-// of indices that correspond to X and y
+func createMapKey(coords [][]int) string {
+	// Make a copy of coords so this function remains 'pure'
+	// otherwise the sort.Slice would modify the input unknowing to the
+	// caller. Really they just want a key not their input to be quietly sorted
+	cp := make([][]int, len(coords))
+	for i := range coords {
+		cp[i] = []int{coords[i][0], coords[i][1]}
+	}
+
+	// Using a custom sorting function to sort by pairs
+	// This function asks the question "should 'i' come before 'j'"
+	// if it returns 'true' then the answer is yes.
+	sort.Slice(cp, func(i, j int) bool {
+		// First we compare the 'x' coordinates
+		if cp[i][0] != cp[j][0] {
+			return cp[i][0] < cp[j][0]
+		}
+		// if the x coordinates are the same we compare the y
+		return cp[i][1] < cp[j][1]
+	})
+
+	// build a compact, unambiguous key: "x,y;x,y;..."
+	var b bytes.Buffer
+	for _, c := range cp {
+		b.WriteString(strconv.Itoa(c[0]))
+		b.WriteByte(',')
+		b.WriteString(strconv.Itoa(c[1]))
+		b.WriteByte(';')
+	}
+	return b.String()
+}
+
+// Given an index I need to find the coordinates of the y's
 // . . . . . . . . . . .
 // . . . . . . y . . . .
 // . . . . . . y . . . .
@@ -109,38 +161,65 @@ func findPaths(matrix [][]int, x int, y int) [][]int {
 // . . . . . . . . . . .
 // . . . . . . . . . . .
 //
-// If y should exceed the bounds of the input matrix return an empty array
-func findNorthPath(x int, y int) [][]int {
-	var result [][]int
+// # If y should exceed the bounds of the input matrix return an empty array
+//
+// returns a map keyed on the sorted
+func findNorthPath(x int, y int) map[string][][]int {
+	var coordinates [][]int
 	end := y - 3
 	// we found a valid north path
+	result := make(map[string][][]int)
 	if end >= 0 {
-		return [][]int{{y, x}, {y - 1, x}, {y - 2, x}, {y - 3, x}}
+		coordinates = [][]int{{y, x}, {y - 1, x}, {y - 2, x}, {y - 3, x}}
+		result[createMapKey(coordinates)] = coordinates
 	}
 	return result
 }
 
-func findEastPath(row []rune, x int, y int) [][]int {
-	var result [][]int
+func findEastPath(length int, x int, y int) map[string][][]int {
+	var coordinates [][]int
 	end := x + 3
-	if end <= (len(row) - 1) {
-		return [][]int{{y, x}, {y, x + 1}, {y, x + 2}, {y, x + 3}}
+	result := make(map[string][][]int)
+	if end <= length-1 {
+		coordinates = [][]int{{y, x}, {y, x + 1}, {y, x + 2}, {y, x + 3}}
+		result[createMapKey(coordinates)] = coordinates
 	}
 	return result
 }
 
-func findSouthPath(h int, x int, y int) [][]int {
-	var result [][]int
+func findSouthPath(height int, x int, y int) map[string][][]int {
+	var coordinates [][]int
 	end := y + 3
+	result := make(map[string][][]int)
 	// we found a valid north path
-	if end <= h {
-		return [][]int{{y, x}, {y + 1, x}, {y + 2, x}, {y + 3, x}}
+	if end <= height {
+		coordinates = [][]int{{y, x}, {y + 1, x}, {y + 2, x}, {y + 3, x}}
+		result[createMapKey(coordinates)] = coordinates
 	}
 	return result
 }
 
-func findWestPath(matrix [][]int, x int, y int) []int {
-	var result []int
+// Given an index I need to find the coordinates of the y's
+// . . . . . . . . . . .
+// . . . . . . . . . . .
+// . . . . . . . . . . .
+// . . . . . . . . . . .
+// . . . y y y X . . . .
+// . . . . . . . . . . .
+// . . . . . . . . . . .
+// . . . . . . . . . . .
+//
+// # If y should exceed the bounds of the input matrix return an empty array
+//
+// returns a map keyed on the sorted
+func findWestPath(x int, y int) map[string][][]int {
+	var coordinates [][]int
+	end := x - 3
+	result := make(map[string][][]int)
+	if end <= 0 {
+		coordinates = [][]int{{y, x}, {y, x + 1}, {y, x + 2}, {y, x + 3}}
+		result[createMapKey(coordinates)] = coordinates
+	}
 	return result
 }
 
