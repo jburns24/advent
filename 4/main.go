@@ -61,17 +61,37 @@ func main() {
 			}
 
 			south := findSouthPath(len(matrix)-1, x, y)
-			if len(east) > 0 && testPath(matrix, south) {
+			if len(south) > 0 && testPath(matrix, south) {
 				matches = mergeMap(matches, south)
 			}
 
 			west := findWestPath(x, y)
 			if len(west) > 0 && testPath(matrix, west) {
-				fmt.Printf("\nWest paths found %v\n", west)
 				matches = mergeMap(matches, west)
+			}
+
+			northEast := findNorthEastPath(matrix, x, y)
+			if len(northEast) > 0 && testPath(matrix, northEast) {
+				matches = mergeMap(matches, northEast)
+			}
+
+			southEast := findSouthEastPath(matrix, x, y)
+			if len(southEast) > 0 && testPath(matrix, southEast) {
+				matches = mergeMap(matches, southEast)
+			}
+
+			southWest := findSouthWestPath(matrix, x, y)
+			if len(southWest) > 0 && testPath(matrix, southWest) {
+				matches = mergeMap(matches, southWest)
+			}
+
+			northWest := findNorthWestPath(matrix, x, y)
+			if len(northWest) > 0 && testPath(matrix, northWest) {
+				matches = mergeMap(matches, northWest)
 			}
 		}
 	}
+	fmt.Printf("\nFound matches: %v\n", len(matches))
 }
 
 func mergeMap(destination map[string][][]int, source map[string][][]int) map[string][][]int {
@@ -84,21 +104,18 @@ func mergeMap(destination map[string][][]int, source map[string][][]int) map[str
 }
 
 func testPath(matrix [][]rune, coords map[string][][]int) bool {
-	// runes for XMAS are 88 77 65 83
-	// the total of these runes is 313
-	// it also happens that there is no other combination of those
-	// characters that can equal 313. Therefore if the total of the runes at
-	// the coordinates is 313 we found a match (this is a directionless check)
-	total := 0
+
+	key := []rune{'X', 'M', 'A', 'S'}
+	keyCount := 0
 	for _, coordinates := range coords {
 		for _, coordinate := range coordinates {
-			total += int(matrix[coordinate[0]][coordinate[1]] - 0)
+			if matrix[coordinate[0]][coordinate[1]] != key[keyCount] {
+				return false
+			}
+			keyCount++
 		}
 	}
-	if total == 313 { // magic number
-		return true
-	}
-	return false
+	return true
 }
 
 // Given an index I need to find all length of 4 that extends from that point
@@ -216,29 +233,113 @@ func findWestPath(x int, y int) map[string][][]int {
 	var coordinates [][]int
 	end := x - 3
 	result := make(map[string][][]int)
-	if end <= 0 {
-		coordinates = [][]int{{y, x}, {y, x + 1}, {y, x + 2}, {y, x + 3}}
+	if end >= 0 {
+		coordinates = [][]int{{y, x}, {y, x - 1}, {y, x - 2}, {y, x - 3}}
 		result[createMapKey(coordinates)] = coordinates
 	}
 	return result
 }
 
-func findNorthEastPath(matrix [][]int, x int, y int) []int {
-	var result []int
+// Given an index I need to find the coordinates of the y's
+// . . . . . . . . . . .
+// . . . . . . . . . y .
+// . . . . . . . . y . .
+// . . . . . . . y . . .
+// . . . . . . X . . . .
+// . . . . . . . . . . .
+// . . . . . . . . . . .
+// . . . . . . . . . . .
+//
+// # If y should exceed the bounds of the input matrix return an empty array
+//
+// returns a map keyed on the sorted coordinates
+func findNorthEastPath(matrix [][]rune, x int, y int) map[string][][]int {
+	var coordinates [][]int
+	yEnd := y - 3
+	xEnd := x + 3
+
+	result := make(map[string][][]int)
+	if yEnd >= 0 && xEnd <= len(matrix[y])-1 {
+		// Found a path
+		coordinates = [][]int{{y, x}, {y - 1, x + 1}, {y - 2, x + 2}, {y - 3, x + 3}}
+		result[createMapKey(coordinates)] = coordinates
+	}
 	return result
 }
 
-func findSouthEastPath(matrix [][]int, x int, y int) []int {
-	var result []int
+// Given an index I need to find the coordinates of the y's
+// . . . . . . . . . . .
+// . . . . . . . . . . .
+// . . . . . . . . . . .
+// . . . . . . . . . . .
+// . . . . . . X . . . .
+// . . . . . . . y . . .
+// . . . . . . . . y . .
+// . . . . . . . . . y .
+//
+// # If y should exceed the bounds of the input matrix return an empty array
+//
+// returns a map keyed on the sorted coordinates
+func findSouthEastPath(matrix [][]rune, x int, y int) map[string][][]int {
+	var coordinates [][]int
+	yEnd := y + 3
+	xEnd := x + 3
+	result := make(map[string][][]int)
+
+	if yEnd <= len(matrix)-1 && xEnd <= len(matrix[y])-1 {
+		coordinates = [][]int{{y, x}, {y + 1, x + 1}, {y + 2, x + 2}, {y + 3, x + 3}}
+		result[createMapKey(coordinates)] = coordinates
+	}
 	return result
 }
 
-func findSouthWestPath(matrix [][]int, x int, y int) []int {
-	var result []int
+// Given an index I need to find the coordinates of the y's
+// . . . . . . . . . . .
+// . . . . . . . . . . .
+// . . . . . . . . . . .
+// . . . . . . . . . . .
+// . . . . . . X . . . .
+// . . . . . y . . . . .
+// . . . . y . . . . . .
+// . . . y . . . . . . .
+//
+// # If y should exceed the bounds of the input matrix return an empty array
+//
+// returns a map keyed on the sorted coordinates
+func findSouthWestPath(matrix [][]rune, x int, y int) map[string][][]int {
+	var coordinates [][]int
+	yEnd := y + 3
+	xEnd := x - 3
+	result := make(map[string][][]int)
+	if yEnd <= len(matrix)-1 && xEnd >= 0 {
+		coordinates = [][]int{{y, x}, {y + 1, x - 1}, {y + 2, x - 2}, {y + 3, x - 3}}
+		result[createMapKey(coordinates)] = coordinates
+	}
 	return result
 }
 
-func findNorthWestPath(matrix [][]int, x int, y int) []int {
-	var result []int
+// Given an index I need to find the coordinates of the y's
+// . . . . . . . . . . .
+// . . . y . . . . . . .
+// . . . . y . . . . . .
+// . . . . . y . . . . .
+// . . . . . . X . . . .
+// . . . . . . . . . . .
+// . . . . . . . . . . .
+// . . . . . . . . . . .
+//
+// # If y should exceed the bounds of the input matrix return an empty array
+//
+// returns a map keyed on the sorted coordinates
+func findNorthWestPath(matrix [][]rune, x int, y int) map[string][][]int {
+	var coordinates [][]int
+	yEnd := y - 3
+	xEnd := x - 3
+	result := make(map[string][][]int)
+
+	if yEnd >= 0 && xEnd >= 0 {
+		coordinates = [][]int{{y, x}, {y - 1, x - 1}, {y - 2, x - 2}, {y - 3, x - 3}}
+		result[createMapKey(coordinates)] = coordinates
+	}
 	return result
 }
